@@ -1,0 +1,8 @@
+{
+  "name": "Gestão Financeira",
+  "description": "A robust, offline-first personal finance manager with AI insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
