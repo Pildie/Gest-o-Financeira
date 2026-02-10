@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { WalletCards, TrendingUp, PiggyBank, Landmark, BadgeDollarSign, Plus, Trash2, Save, Info } from 'lucide-react';
+import { WalletCards, TrendingUp, PiggyBank, Landmark, BadgeDollarSign, Plus, Trash2, Save } from 'lucide-react';
 import { InvestmentAsset, InvestmentType } from '../types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,10 +13,6 @@ const typeOptions: { value: InvestmentType; label: string }[] = [
   { value: 'TESOURO', label: 'Tesouro Direto' },
   { value: 'OUTRO', label: 'Outro' },
 ];
-
-const Hint = ({ text }: { text: string }) => (
-  <span title={text} className="inline-flex items-center text-gray-400 hover:text-gray-600 cursor-help"><Info size={14} /></span>
-);
 
 const initialForm: Omit<InvestmentAsset, 'id'> = {
   name: '',
@@ -42,10 +38,6 @@ const Investments: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const assets = data.investments || [];
-  const investmentAccountIds = new Set(data.accounts.filter(a => a.type === 'INVESTMENT' || a.type === 'SAVINGS').map(a => a.id));
-  const movedByTransactions = data.transactions
-    .filter(t => investmentAccountIds.has(t.accountId) && t.type !== 'TRANSFER')
-    .reduce((s, t) => s + (t.type === 'INCOME' ? t.amount : -t.amount), 0);
 
   const format = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
@@ -66,9 +58,23 @@ const Investments: React.FC = () => {
     const applied = assets.reduce((s, a) => s + a.principal, 0);
     const sim = assets.reduce((acc, a) => {
       const s = simulate(a);
-      return { gross: acc.gross + s.gross, net: acc.net + s.net };
+      return {
+        gross: acc.gross + s.gross,
+        net: acc.net + s.net,
+      };
     }, { gross: 0, net: 0 });
     return { applied, gross: sim.gross, net: sim.net };
+  }, [assets]);
+
+  const opportunities = useMemo(() => {
+    const list: string[] = [];
+    assets.forEach(a => {
+      const sim = simulate(a);
+      if (a.liquidityDays > 30) list.push(`${a.name}: liquidez de ${a.liquidityDays} dias, planeje caixa.`);
+      if (sim.netYield < 0) list.push(`${a.name}: rendimento líquido projetado negativo.`);
+      if ((a.benchmarkPercent || 100) < 100 && a.benchmark === 'CDI') list.push(`${a.name}: abaixo de 100% do CDI, avalie alternativas.`);
+    });
+    return list.slice(0, 5);
   }, [assets]);
 
   const allocation = useMemo(() => {
@@ -106,16 +112,11 @@ const Investments: React.FC = () => {
         <p className="text-gray-500">Cadastro editável com simulação de rendimento bruto/líquido e impostos.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-gray-400 uppercase font-bold">Total aportado (cadastro)</p>
+          <p className="text-xs text-gray-400 uppercase font-bold">Total aportado</p>
           <p className="text-2xl font-bold text-emerald-600 mt-1">{format(totals.applied)}</p>
           <div className="text-xs text-gray-500 mt-2 flex items-center gap-1"><BadgeDollarSign size={14}/> Principal investido</div>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-gray-400 uppercase font-bold">Movimentado nas contas</p>
-          <p className="text-2xl font-bold text-indigo-600 mt-1">{format(movedByTransactions)}</p>
-          <div className="text-xs text-gray-500 mt-2">Compatibilização com lançamentos</div>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
           <p className="text-xs text-gray-400 uppercase font-bold">Projeção bruta</p>
@@ -132,19 +133,25 @@ const Investments: React.FC = () => {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
         <h3 className="font-bold text-gray-900 flex items-center gap-2"><Plus size={18}/> {editingId ? 'Editar investimento' : 'Novo investimento'}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="text-xs text-gray-600">Nome <Hint text="Nome para identificar o ativo." /><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nome do investimento" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Tipo <Hint text="Classe do investimento (CDB, CDI, Fundo...)." /><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as InvestmentType })} className="mt-1 w-full p-3 bg-gray-50 rounded-xl border">{typeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
-          <label className="text-xs text-gray-600">Banco/Fundo <Hint text="Instituição emissora ou administradora." /><input value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })} placeholder="Banco/Fundo" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Aporte <Hint text="Valor principal aplicado." /><input type="number" value={form.principal} onChange={e => setForm({ ...form, principal: parseFloat(e.target.value || '0') })} placeholder="Aporte" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Taxa anual % <Hint text="Rentabilidade anual estimada ou contratada." /><input type="number" step="0.01" value={form.annualRate} onChange={e => setForm({ ...form, annualRate: parseFloat(e.target.value || '0') })} placeholder="Taxa anual %" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Liquidez (dias) <Hint text="Prazo para resgate cair na conta." /><input type="number" value={form.liquidityDays} onChange={e => setForm({ ...form, liquidityDays: parseInt(e.target.value || '0', 10) })} placeholder="Liquidez (dias)" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Data inicial <Hint text="Data de início da aplicação." /><input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Data prevista de retirada <Hint text="Data usada para simular rendimento." /><input type="date" value={form.expectedWithdrawalDate || ''} onChange={e => setForm({ ...form, expectedWithdrawalDate: e.target.value })} className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Base de referência <Hint text="Benchmark para comparação." /><select value={form.benchmark || 'CDI'} onChange={e => setForm({ ...form, benchmark: e.target.value as any })} className="mt-1 w-full p-3 bg-gray-50 rounded-xl border"><option value="CDI">CDI</option><option value="IPCA">IPCA</option><option value="PRE">Pré</option></select></label>
-          <label className="text-xs text-gray-600">% da base <Hint text="Ex.: 110 significa 110% do CDI." /><input type="number" step="0.01" value={form.benchmarkPercent || 0} onChange={e => setForm({ ...form, benchmarkPercent: parseFloat(e.target.value || '0') })} placeholder="% da base" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">IOF (%) <Hint text="Alíquota de IOF para simulação." /><input type="number" step="0.01" value={form.iofRate} onChange={e => setForm({ ...form, iofRate: parseFloat(e.target.value || '0') })} placeholder="IOF (%)" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">IR (%) <Hint text="Alíquota de IR para simulação." /><input type="number" step="0.01" value={form.irRate} onChange={e => setForm({ ...form, irRate: parseFloat(e.target.value || '0') })} placeholder="IR (%)" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
-          <label className="text-xs text-gray-600">Base IR retroativo <Hint text="Descreva a base usada, quando aplicável." /><input value={form.irRetroactiveBase || ''} onChange={e => setForm({ ...form, irRetroactiveBase: e.target.value })} placeholder="IR retroativo - base" className="mt-1 w-full p-3 bg-gray-50 rounded-xl border" /></label>
+          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nome do investimento" className="p-3 bg-gray-50 rounded-xl border" />
+          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as InvestmentType })} className="p-3 bg-gray-50 rounded-xl border">
+            {typeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          <input value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })} placeholder="Banco/Fundo" className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="number" value={form.principal} onChange={e => setForm({ ...form, principal: parseFloat(e.target.value || '0') })} placeholder="Aporte" className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="number" step="0.01" value={form.annualRate} onChange={e => setForm({ ...form, annualRate: parseFloat(e.target.value || '0') })} placeholder="Taxa anual %" className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="number" value={form.liquidityDays} onChange={e => setForm({ ...form, liquidityDays: parseInt(e.target.value || '0', 10) })} placeholder="Liquidez (dias)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="date" value={form.expectedWithdrawalDate || ''} onChange={e => setForm({ ...form, expectedWithdrawalDate: e.target.value })} className="p-3 bg-gray-50 rounded-xl border" />
+          <select value={form.benchmark || 'CDI'} onChange={e => setForm({ ...form, benchmark: e.target.value as any })} className="p-3 bg-gray-50 rounded-xl border">
+            <option value="CDI">Base CDI</option>
+            <option value="IPCA">Base IPCA</option>
+            <option value="PRE">Pré-fixado</option>
+          </select>
+          <input type="number" step="0.01" value={form.benchmarkPercent || 0} onChange={e => setForm({ ...form, benchmarkPercent: parseFloat(e.target.value || '0') })} placeholder="% da base (ex: 110 CDI)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="number" step="0.01" value={form.iofRate} onChange={e => setForm({ ...form, iofRate: parseFloat(e.target.value || '0') })} placeholder="IOF (%)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input type="number" step="0.01" value={form.irRate} onChange={e => setForm({ ...form, irRate: parseFloat(e.target.value || '0') })} placeholder="IR (%)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input value={form.irRetroactiveBase || ''} onChange={e => setForm({ ...form, irRetroactiveBase: e.target.value })} placeholder="IR retroativo - base" className="p-3 bg-gray-50 rounded-xl border" />
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={form.iofRetroactive} onChange={e => setForm({ ...form, iofRetroactive: e.target.checked })} /> IOF retroativo
@@ -156,19 +163,22 @@ const Investments: React.FC = () => {
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Landmark size={18}/> Alocação por tipo</h3>
+        <div className="space-y-2">
+          {allocation.length === 0 && <p className="text-sm text-gray-400">Sem investimentos cadastrados.</p>}
+          {allocation.map(([type, value]) => (
+            <div key={type} className="flex justify-between px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+              <span className="font-medium text-gray-700">{type}</span>
+              <span className="font-bold text-gray-900">{format(value)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Landmark size={18}/> Alocação por tipo</h3>
-          <div className="space-y-2">
-            {allocation.length === 0 && <p className="text-sm text-gray-400">Sem investimentos cadastrados.</p>}
-            {allocation.map(([type, value]) => (
-              <div key={type} className="flex justify-between px-3 py-2 bg-gray-50 rounded-xl border border-gray-100"><span className="font-medium text-gray-700">{type}</span><span className="font-bold text-gray-900">{format(value)}</span></div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><PiggyBank size={18}/> Carteira cadastrada</h3>
+          <h3 className="font-bold text-gray-900 mb-4">Carteira cadastrada</h3>
           <div className="space-y-3">
             {assets.length === 0 && <p className="text-sm text-gray-400">Nenhum investimento cadastrado.</p>}
             {assets.map(asset => {
@@ -176,7 +186,10 @@ const Investments: React.FC = () => {
               return (
                 <div key={asset.id} className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div><p className="font-bold text-gray-900">{asset.name}</p><p className="text-xs text-gray-500">{asset.type} • {asset.institution}</p></div>
+                    <div>
+                      <p className="font-bold text-gray-900">{asset.name}</p>
+                      <p className="text-xs text-gray-500">{asset.type} • {asset.institution}</p>
+                    </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleEdit(asset)} className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">Editar</button>
                       <button onClick={() => deleteInvestment(asset.id)} className="text-xs px-2 py-1 rounded bg-rose-50 text-rose-700 flex items-center gap-1"><Trash2 size={12}/>Excluir</button>
@@ -187,11 +200,21 @@ const Investments: React.FC = () => {
                     <p>Liquidez: <strong>{asset.liquidityDays} dias</strong></p>
                     <p>Bruto: <strong>{format(sim.gross)}</strong></p>
                     <p>Líquido: <strong>{format(sim.net)}</strong></p>
+                    <p>Rendimento bruto: <strong>{format(sim.grossYield)}</strong></p>
+                    <p>Rendimento líquido: <strong>{format(sim.netYield)}</strong></p>
                   </div>
                 </div>
               );
             })}
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><PiggyBank size={18}/> Saúde e oportunidades</h3>
+          <ul className="space-y-2 text-sm text-gray-700">
+            {opportunities.length === 0 && <li className="text-gray-400">Sem alertas no momento. Continue acompanhando prazos e rentabilidade.</li>}
+            {opportunities.map((item, idx) => <li key={idx} className="p-2 bg-amber-50 border border-amber-100 rounded-lg">• {item}</li>)}
+          </ul>
         </div>
       </div>
     </div>
