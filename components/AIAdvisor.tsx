@@ -7,7 +7,7 @@ const AIAdvisor: React.FC = () => {
   const { data } = useFinance();
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
-    { role: 'assistant', content: 'Olá! Eu sou seu Analista Financeiro Local. Me peça para analisar seus gastos e eu calcularei um resumo matemático para você.' }
+    { role: 'assistant', content: 'Olá! Sou seu Analista Financeiro Local. Posso analisar suas finanças e também simular financiamentos (ex.: valor 50000 juros 1.6 am prazo 48 meses).' }
   ]);
   const [loading, setLoading] = useState(false);
 
@@ -65,7 +65,7 @@ const AIAdvisor: React.FC = () => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Digite 'Analisar' ou clique no botão..."
+            placeholder="Ex: valor 50000 juros 1.6 am prazo 48 meses"
             className="w-full pl-4 pr-12 py-3 bg-gray-100 border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
           />
           <button 
