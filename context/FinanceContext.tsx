@@ -6,6 +6,56 @@ import { parseOFX } from '../services/ofxParser';
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
+const normalizeText = (value: string) =>
+  (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const toTxFingerprint = (tx: Pick<Transaction, 'date' | 'amount' | 'accountId' | 'description' | 'type'>): string => {
+  return [
+    tx.accountId,
+    tx.date,
+    tx.type,
+    Math.abs(Math.round(tx.amount * 100)),
+    normalizeText(tx.description),
+  ].join('|');
+};
+
+const parseCSVRow = (row: string, separator: string): string[] => {
+  const out: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    const next = row[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === separator && !inQuotes) {
+      out.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  out.push(current.trim());
+  return out;
+};
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [data, setData] = useState<AppData>(loadData());
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -315,7 +365,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const parsed = parseOFX(ofxString);
       if (parsed.length === 0) return 0;
-      const newTransactions: Transaction[] = parsed.map(t => ({
+      const existingFingerprints = new Set(data.transactions.map((tx) => toTxFingerprint(tx)));
+
+      const newTransactions: Transaction[] = parsed.map((t): Transaction => ({
         id: crypto.randomUUID(),
         description: t.description || 'OFX',
         amount: t.amount || 0,
@@ -323,7 +375,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         status: 'COMPLETED',
         date: t.date || new Date().toISOString().split('T')[0],
         accountId: accountId,
-      }));
+      })).filter((tx) => {
+        const fp = toTxFingerprint(tx);
+        if (existingFingerprints.has(fp)) return false;
+        existingFingerprints.add(fp);
+        return true;
+      });
+
+      if (!newTransactions.length) return 0;
+
       let updatedAccounts = [...data.accounts];
       newTransactions.forEach(t => updatedAccounts = applyBalanceEffect(updatedAccounts, t, false));
       setData(prev => ({ ...prev, accounts: updatedAccounts, transactions: [...newTransactions, ...prev.transactions] }));
@@ -336,7 +396,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const sep = separator || ';';
       const lines = csvString.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       if (lines.length < 2) return 0;
-      const header = lines[0].split(sep).map(v => v.trim().toLowerCase());
+      const header = parseCSVRow(lines[0], sep).map(v => v.trim().toLowerCase());
 
       const getIdx = (...names: string[]) => names.map(n => header.indexOf(n)).find(i => i !== -1) ?? -1;
       const idxDate = getIdx('data', 'date');
@@ -354,10 +414,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const rows = lines.slice(1);
       const newTransactions: Transaction[] = [];
+      const existingFingerprints = new Set(data.transactions.map((tx) => toTxFingerprint(tx)));
 
       rows.forEach(row => {
         if (!row) return;
-        const cols = row.split(sep).map(v => v.trim());
+        const cols = parseCSVRow(row, sep);
         const dateRaw = idxDate >= 0 ? (cols[idxDate] || '') : '';
         const desc = idxDesc >= 0 ? (cols[idxDesc] || 'CSV') : 'CSV';
         const amountRaw = idxAmount >= 0 ? (cols[idxAmount] || '0') : '0';
@@ -375,7 +436,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ? 'EXPENSE'
             : inferredBySignal;
 
-        newTransactions.push({
+        const tx: Transaction = {
           id: crypto.randomUUID(),
           description: desc || 'CSV',
           amount,
@@ -383,7 +444,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           status: 'COMPLETED',
           date: isoDate,
           accountId,
-        });
+        };
+
+        const fp = toTxFingerprint(tx);
+        if (existingFingerprints.has(fp)) return;
+        existingFingerprints.add(fp);
+        newTransactions.push(tx);
       });
 
       if (!newTransactions.length) return 0;
