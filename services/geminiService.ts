@@ -5,7 +5,7 @@ const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 const getMonthlyRate = (annualRate: number) => Math.pow(1 + annualRate / 100, 1 / 12) - 1;
 
 const financingSummary = (query: string) => {
-  const normalized = query.toLowerCase().replace(/,/g, '.');
+  const normalized = query.toLowerCase().replace(',', '.');
   const valueMatch = normalized.match(/(valor|principal)\s*[:=]?\s*(\d+(?:\.\d+)?)/);
   const rateMatch = normalized.match(/(juros|taxa)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*%?\s*(am|a\.m|aa|a\.a)?/);
   const monthsMatch = normalized.match(/(prazo|parcelas|meses)\s*[:=]?\s*(\d+)/);
@@ -18,9 +18,7 @@ const financingSummary = (query: string) => {
   const months = parseInt(monthsMatch[2], 10);
   const monthlyRate = period.includes('aa') ? getMonthlyRate(rawRate) : rawRate / 100;
 
-  const pmt = monthlyRate === 0
-    ? principal / months
-    : principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+  const pmt = principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
   const totalPaid = pmt * months;
   const totalInterest = totalPaid - principal;
 

@@ -268,15 +268,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const parsed = JSON.parse(jsonString) as AppData;
       if (parsed.transactions) {
-        setData(prev => ({
-          ...prev,
-          ...parsed,
-          transactions: parsed.transactions || [],
-          categories: parsed.categories || prev.categories,
-          accounts: parsed.accounts || prev.accounts,
-          goals: parsed.goals || prev.goals || [],
-          investments: parsed.investments || prev.investments || [],
-        }));
+        setData({ ...parsed, goals: parsed.goals || [], investments: parsed.investments || [] });
         return true;
       }
       return false;
@@ -316,36 +308,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const idxAmount = getIdx('valor', 'amount');
       const idxType = getIdx('tipo', 'type');
 
-      const parseAmount = (raw: string): number => {
-        const value = (raw || '').trim();
-        if (!value) return Number.NaN;
-        const hasComma = value.includes(',');
-        const normalized = hasComma ? value.replace(/\./g, '').replace(',', '.') : value.replace(/,/g, '');
-        return parseFloat(normalized);
-      };
-
       const rows = lines.slice(1);
       const newTransactions: Transaction[] = [];
 
       rows.forEach(row => {
-        if (!row) return;
         const cols = row.split(sep).map(v => v.trim());
-        const dateRaw = idxDate >= 0 ? (cols[idxDate] || '') : '';
-        const desc = idxDesc >= 0 ? (cols[idxDesc] || 'CSV') : 'CSV';
-        const amountRaw = idxAmount >= 0 ? (cols[idxAmount] || '0') : '0';
-        const parsedAmount = parseAmount(amountRaw);
-        if (Number.isNaN(parsedAmount) || parsedAmount === 0) return;
+        const dateRaw = idxDate >= 0 ? cols[idxDate] : '';
+        const desc = idxDesc >= 0 ? cols[idxDesc] : 'CSV';
+        const amountRaw = (idxAmount >= 0 ? cols[idxAmount] : '0').replace(/\./g, '').replace(',', '.');
+        const amount = Math.abs(parseFloat(amountRaw));
+        if (!amount || Number.isNaN(amount)) return;
 
-        const amount = Math.abs(parsedAmount);
-        const isoDate = dateRaw.includes('/') ? dateRaw.split('/').reverse().join('-') : (dateRaw || new Date().toISOString().split('T')[0]);
+        const isoDate = dateRaw.includes('/')
+          ? dateRaw.split('/').reverse().join('-')
+          : (dateRaw || new Date().toISOString().split('T')[0]);
 
         const typeRaw = idxType >= 0 ? (cols[idxType] || '').toLowerCase() : '';
-        const inferredBySignal = parsedAmount > 0 ? 'INCOME' : 'EXPENSE';
         const type = typeRaw.includes('receita') || typeRaw.includes('credito') || typeRaw.includes('income')
           ? 'INCOME'
-          : typeRaw.includes('despesa') || typeRaw.includes('debito') || typeRaw.includes('expense')
-            ? 'EXPENSE'
-            : inferredBySignal;
+          : 'EXPENSE';
 
         newTransactions.push({
           id: crypto.randomUUID(),

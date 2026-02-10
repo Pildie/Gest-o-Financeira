@@ -8,14 +8,18 @@ const Settings: React.FC = () => {
   const { exportData, importData, importOFX, importCSV, data } = useFinance();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
+codex/compare-code-with-mobills-pro-for-improvements-oda9ki
   const csvInputRef = useRef<HTMLInputElement>(null);
+main
   const cloudHandleRef = useRef<any>(null);
 
   const [targetAccountForOFX, setTargetAccountForOFX] = useState(data.accounts[0]?.id || '');
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(localStorage.getItem(AUTO_BACKUP_KEY) === 'true');
   const [lastAutoBackup, setLastAutoBackup] = useState<string | null>(null);
+codex/compare-code-with-mobills-pro-for-improvements-oda9ki
   const [csvSeparator, setCsvSeparator] = useState(';');
   const [targetAccountForCSV, setTargetAccountForCSV] = useState(data.accounts[0]?.id || '');
+main
 
   const writeCloudBackup = async () => {
     if (!cloudHandleRef.current) return;
@@ -45,14 +49,6 @@ const Settings: React.FC = () => {
       console.error(err);
     }
   };
-
-
-  useEffect(() => {
-    if (autoBackupEnabled && !cloudHandleRef.current) {
-      setAutoBackupEnabled(false);
-      localStorage.setItem(AUTO_BACKUP_KEY, 'false');
-    }
-  }, []);
 
   useEffect(() => {
     if (!autoBackupEnabled || !cloudHandleRef.current) return;
@@ -232,6 +228,7 @@ const Settings: React.FC = () => {
                 {data.accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
               </select>
               <button onClick={handleOFXClick} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700">Importar OFX</button>
+codex/compare-code-with-mobills-pro-for-improvements-oda9ki
             </div>
             <input type="file" ref={ofxInputRef} className="hidden" accept=".ofx" onChange={handleOFXChange} />
           </div>
@@ -259,8 +256,10 @@ const Settings: React.FC = () => {
               <button onClick={handleCSVClick} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-teal-700">Importar CSV</button>
             </div>
             <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.txt" onChange={handleCSVChange} />
+            </div>
+            <input type="file" ref={ofxInputRef} className="hidden" accept=".ofx" onChange={handleOFXChange} />
+main
           </div>
-
         </div>
       </div>
 
