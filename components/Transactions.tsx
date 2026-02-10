@@ -66,30 +66,6 @@ const Transactions: React.FC<Props> = ({ onEdit }) => {
   const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / itemsPerPage));
   const paginatedData = sortedTransactions.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  const monthlyOverview = useMemo(() => {
-    const sameMonthTransactions = data.transactions.filter((transaction) => {
-      const transactionDate = new Date(`${transaction.date}T00:00:00`);
-      return (
-        transactionDate.getMonth() === currentDate.getMonth() &&
-        transactionDate.getFullYear() === currentDate.getFullYear()
-      );
-    });
-
-    const income = sameMonthTransactions
-      .filter((transaction) => transaction.type === 'INCOME')
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-    const expenses = sameMonthTransactions
-      .filter((transaction) => transaction.type === 'EXPENSE')
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-    return {
-      income,
-      expenses,
-      balance: income - expenses,
-    };
-  }, [currentDate, data.transactions]);
-
   useEffect(() => {
     setPage((prev) => Math.min(Math.max(prev, 1), totalPages));
   }, [totalPages]);
@@ -157,23 +133,6 @@ const Transactions: React.FC<Props> = ({ onEdit }) => {
             <option value="COMPLETED">Pagos / Recebidos</option>
             <option value="PENDING">Pendentes</option>
           </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-white border border-gray-200 rounded-2xl p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-400 font-bold">Entradas do mês</p>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{formatCurrency(monthlyOverview.income)}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-400 font-bold">Saídas do mês</p>
-          <p className="text-xl font-bold text-rose-600 mt-1">{formatCurrency(monthlyOverview.expenses)}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-400 font-bold">Balanço geral do mês</p>
-          <p className={`text-xl font-bold mt-1 ${monthlyOverview.balance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
-            {formatCurrency(monthlyOverview.balance)}
-          </p>
         </div>
       </div>
 
