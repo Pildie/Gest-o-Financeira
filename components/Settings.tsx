@@ -168,9 +168,6 @@ const Settings: React.FC = () => {
                   Status: {autoBackupEnabled ? 'Ativado' : 'Desativado'}
                   {lastAutoBackup ? ` • Último: ${lastAutoBackup}` : ''}
                 </p>
-                {autoBackupEnabled && !cloudHandleRef.current && (
-                  <p className="text-xs text-amber-600 mt-1">Sem arquivo vinculado: sincronização automática salva snapshot local.</p>
-                )}
               </div>
             </div>
             <button
