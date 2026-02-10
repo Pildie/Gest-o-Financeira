@@ -17,6 +17,7 @@ const DEFAULT_ACCOUNTS: Account[] = [
   { id: 'a1', name: 'Carteira (Dinheiro)', type: 'WALLET', balance: 0 },
   { id: 'a2', name: 'Conta Corrente', type: 'CHECKING', balance: 0 },
   { id: 'a3', name: 'Poupança / Reserva', type: 'SAVINGS', balance: 0 },
+  { id: 'a4', name: 'Corretora / Investimentos', type: 'INVESTMENT', balance: 0 },
 ];
 
 const DEFAULT_GOALS: Goal[] = [
