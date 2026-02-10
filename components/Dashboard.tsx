@@ -15,6 +15,8 @@ const Dashboard: React.FC<Props> = ({ onEdit, onViewAll }) => {
   // Cálculos Básicos
   const totalBalance = data.accounts.reduce((sum, acc) => sum + acc.balance, 0);
   const savingsBalance = data.accounts.filter(a => a.type === 'SAVINGS' || a.type === 'INVESTMENT').reduce((sum, a) => sum + a.balance, 0);
+  const investedInAssets = (data.investments || []).reduce((sum, asset) => sum + asset.principal, 0);
+  const investedDisplay = investedInAssets > 0 ? investedInAssets : savingsBalance;
 
   const incomeTotal = filteredTransactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
   const expenseTotal = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
@@ -50,7 +52,7 @@ const Dashboard: React.FC<Props> = ({ onEdit, onViewAll }) => {
               <div className="flex flex-wrap items-center gap-4 mt-8">
                   <div className="flex items-center gap-2 text-sm text-gray-300 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                       <PiggyBank size={18} className="text-emerald-400" />
-                      <span>Investido: <strong className="text-emerald-400">{formatCurrency(savingsBalance)}</strong></span>
+                      <span>Investido: <strong className="text-emerald-400">{formatCurrency(investedDisplay)}</strong></span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-300 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                       <TrendingUp size={18} className={monthlyResult >= 0 ? "text-blue-400" : "text-rose-400"} />
