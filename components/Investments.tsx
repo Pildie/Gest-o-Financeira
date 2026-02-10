@@ -66,6 +66,14 @@ const Investments: React.FC = () => {
     return { applied, gross: sim.gross, net: sim.net };
   }, [assets]);
 
+  const investmentAccountBalance = useMemo(() => {
+    return data.accounts
+      .filter(account => account.type === 'INVESTMENT' || account.type === 'SAVINGS')
+      .reduce((sum, account) => sum + account.balance, 0);
+  }, [data.accounts]);
+
+  const compatibilityDelta = totals.applied - investmentAccountBalance;
+
   const opportunities = useMemo(() => {
     const list: string[] = [];
     assets.forEach(a => {
@@ -130,28 +138,49 @@ const Investments: React.FC = () => {
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <p className="text-xs text-gray-400 uppercase font-bold">Compatibilização entre abas</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+          <div>
+            <p className="text-xs text-gray-500">Total aportado (aba Investimentos)</p>
+            <p className="text-lg font-bold text-gray-900">{format(totals.applied)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Saldo em contas de investimento/reserva</p>
+            <p className="text-lg font-bold text-gray-900">{format(investmentAccountBalance)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Diferença</p>
+            <p className={`text-lg font-bold ${compatibilityDelta === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>{format(compatibilityDelta)}</p>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Dica: para manter consistência, registre aportes/resgates no Extrato usando contas de investimento.
+        </p>
+      </div>
+
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
         <h3 className="font-bold text-gray-900 flex items-center gap-2"><Plus size={18}/> {editingId ? 'Editar investimento' : 'Novo investimento'}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nome do investimento" className="p-3 bg-gray-50 rounded-xl border" />
-          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as InvestmentType })} className="p-3 bg-gray-50 rounded-xl border">
+          <input title="Identificação do ativo (ex.: CDB Banco X 2028)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nome do investimento" className="p-3 bg-gray-50 rounded-xl border" />
+          <select title="Tipo do ativo para análise de carteira" value={form.type} onChange={e => setForm({ ...form, type: e.target.value as InvestmentType })} className="p-3 bg-gray-50 rounded-xl border">
             {typeOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          <input value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })} placeholder="Banco/Fundo" className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="number" value={form.principal} onChange={e => setForm({ ...form, principal: parseFloat(e.target.value || '0') })} placeholder="Aporte" className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="number" step="0.01" value={form.annualRate} onChange={e => setForm({ ...form, annualRate: parseFloat(e.target.value || '0') })} placeholder="Taxa anual %" className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="number" value={form.liquidityDays} onChange={e => setForm({ ...form, liquidityDays: parseInt(e.target.value || '0', 10) })} placeholder="Liquidez (dias)" className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="date" value={form.expectedWithdrawalDate || ''} onChange={e => setForm({ ...form, expectedWithdrawalDate: e.target.value })} className="p-3 bg-gray-50 rounded-xl border" />
-          <select value={form.benchmark || 'CDI'} onChange={e => setForm({ ...form, benchmark: e.target.value as any })} className="p-3 bg-gray-50 rounded-xl border">
+          <input title="Instituição emissora/gestora" value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })} placeholder="Banco/Fundo" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Valor principal aplicado (sem rendimentos)" type="number" value={form.principal} onChange={e => setForm({ ...form, principal: parseFloat(e.target.value || '0') })} placeholder="Aporte" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Taxa efetiva anual estimada para simulação" type="number" step="0.01" value={form.annualRate} onChange={e => setForm({ ...form, annualRate: parseFloat(e.target.value || '0') })} placeholder="Taxa anual %" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Prazo de resgate em dias" type="number" value={form.liquidityDays} onChange={e => setForm({ ...form, liquidityDays: parseInt(e.target.value || '0', 10) })} placeholder="Liquidez (dias)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Data de início da aplicação" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Data prevista de resgate (opcional)" type="date" value={form.expectedWithdrawalDate || ''} onChange={e => setForm({ ...form, expectedWithdrawalDate: e.target.value })} className="p-3 bg-gray-50 rounded-xl border" />
+          <select title="Indexador base da aplicação" value={form.benchmark || 'CDI'} onChange={e => setForm({ ...form, benchmark: e.target.value as any })} className="p-3 bg-gray-50 rounded-xl border">
             <option value="CDI">Base CDI</option>
             <option value="IPCA">Base IPCA</option>
             <option value="PRE">Pré-fixado</option>
           </select>
-          <input type="number" step="0.01" value={form.benchmarkPercent || 0} onChange={e => setForm({ ...form, benchmarkPercent: parseFloat(e.target.value || '0') })} placeholder="% da base (ex: 110 CDI)" className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="number" step="0.01" value={form.iofRate} onChange={e => setForm({ ...form, iofRate: parseFloat(e.target.value || '0') })} placeholder="IOF (%)" className="p-3 bg-gray-50 rounded-xl border" />
-          <input type="number" step="0.01" value={form.irRate} onChange={e => setForm({ ...form, irRate: parseFloat(e.target.value || '0') })} placeholder="IR (%)" className="p-3 bg-gray-50 rounded-xl border" />
-          <input value={form.irRetroactiveBase || ''} onChange={e => setForm({ ...form, irRetroactiveBase: e.target.value })} placeholder="IR retroativo - base" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Percentual do indexador (ex.: 110 para 110% do CDI)" type="number" step="0.01" value={form.benchmarkPercent || 0} onChange={e => setForm({ ...form, benchmarkPercent: parseFloat(e.target.value || '0') })} placeholder="% da base (ex: 110 CDI)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Alíquota estimada de IOF" type="number" step="0.01" value={form.iofRate} onChange={e => setForm({ ...form, iofRate: parseFloat(e.target.value || '0') })} placeholder="IOF (%)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Alíquota estimada de IR" type="number" step="0.01" value={form.irRate} onChange={e => setForm({ ...form, irRate: parseFloat(e.target.value || '0') })} placeholder="IR (%)" className="p-3 bg-gray-50 rounded-xl border" />
+          <input title="Base para cálculo retroativo de IR (opcional)" value={form.irRetroactiveBase || ''} onChange={e => setForm({ ...form, irRetroactiveBase: e.target.value })} placeholder="IR retroativo - base" className="p-3 bg-gray-50 rounded-xl border" />
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={form.iofRetroactive} onChange={e => setForm({ ...form, iofRetroactive: e.target.checked })} /> IOF retroativo

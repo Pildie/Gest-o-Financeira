@@ -11,7 +11,7 @@ interface Props {
 }
 
 const TransactionForm: React.FC<Props> = ({ onClose, initialType = 'EXPENSE', initialData }) => {
-  const { data, addTransaction, editTransaction, getCategoryStats } = useFinance();
+  const { data, addTransaction, editTransaction, getCategoryStats, addSubcategory } = useFinance();
 
   const [type, setType] = useState<TransactionType>(initialData?.type || initialType);
   const [status, setStatus] = useState<TransactionStatus>(initialData?.status || 'COMPLETED');
@@ -20,6 +20,7 @@ const TransactionForm: React.FC<Props> = ({ onClose, initialType = 'EXPENSE', in
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState(initialData?.categoryId || '');
   const [subCategory, setSubCategory] = useState(initialData?.subCategory || '');
+  const [newSubCategory, setNewSubCategory] = useState('');
   const [accountId, setAccountId] = useState(initialData?.accountId || data.accounts[0]?.id || '');
   const [toAccountId, setToAccountId] = useState(initialData?.toAccountId || data.accounts[1]?.id || '');
 
@@ -127,6 +128,20 @@ const TransactionForm: React.FC<Props> = ({ onClose, initialType = 'EXPENSE', in
       });
     }
     onClose();
+  };
+
+  const handleAddSubcategory = () => {
+    if (!selectedCategory) return;
+    const normalized = newSubCategory.trim();
+    if (!normalized) return;
+    if (selectedCategory.subcategories.includes(normalized)) {
+      setSubCategory(normalized);
+      setNewSubCategory('');
+      return;
+    }
+    addSubcategory(selectedCategory.id, normalized);
+    setSubCategory(normalized);
+    setNewSubCategory('');
   };
 
   const getTheme = () => {
@@ -318,6 +333,23 @@ const TransactionForm: React.FC<Props> = ({ onClose, initialType = 'EXPENSE', in
                         <option value="">{selectedCategory?.subcategories.length ? 'Opcional' : 'Sem subcategorias'}</option>
                         {selectedCategory?.subcategories.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
                       </select>
+                      {selectedCategory && (
+                        <div className="flex gap-2 mt-2">
+                          <input
+                            value={newSubCategory}
+                            onChange={(e) => setNewSubCategory(e.target.value)}
+                            placeholder="Nova subcategoria"
+                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddSubcategory}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold"
+                          >
+                            Adicionar
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

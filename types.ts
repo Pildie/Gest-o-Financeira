@@ -43,6 +43,11 @@ export interface Transaction {
     total: number;
   };
   isRecurring?: boolean;
+
+  // Cartão de crédito por competência
+  creditCardId?: string;
+  invoiceMonth?: string; // YYYY-MM
+  installmentId?: string;
 }
 
 

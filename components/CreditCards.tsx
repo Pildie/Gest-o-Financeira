@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { CreditCard, Settings as SettingsIcon, Save } from 'lucide-react';
+import { CreditCard, Settings as SettingsIcon, Save, Plus } from 'lucide-react';
 import { Account } from '../types';
 
 const CreditCards: React.FC = () => {
-  const { data, updateAccountDetails } = useFinance();
+  const { data, updateAccountDetails, addAccount } = useFinance();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showCreateCard, setShowCreateCard] = useState(false);
+  const [newCard, setNewCard] = useState({ name: '', creditLimit: '0', closingDay: '1', dueDay: '10' });
   
   // Filtra apenas contas do tipo CREDIT_CARD
   const cards = data.accounts.filter(a => a.type === 'CREDIT_CARD');
@@ -38,6 +40,25 @@ const CreditCards: React.FC = () => {
       // O balance em cartão geralmente representa o "gasto atual" (negativo) ou "fatura"
     });
     setEditingId(null);
+  };
+
+  const handleCreateCard = () => {
+    if (!newCard.name.trim()) {
+      alert('Informe o nome do cartão.');
+      return;
+    }
+
+    addAccount({
+      name: newCard.name.trim(),
+      type: 'CREDIT_CARD',
+      balance: 0,
+      creditLimit: parseFloat(newCard.creditLimit || '0'),
+      closingDay: parseInt(newCard.closingDay || '1', 10),
+      dueDay: parseInt(newCard.dueDay || '10', 10),
+    });
+
+    setShowCreateCard(false);
+    setNewCard({ name: '', creditLimit: '0', closingDay: '1', dueDay: '10' });
   };
 
   const CardEditor = ({ card, onCancel }: { card: Account, onCancel: () => void }) => {
@@ -80,8 +101,56 @@ const CreditCards: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Meus Cartões</h1>
             <p className="text-gray-500">Gerencie limites e datas de fechamento.</p>
           </div>
-          {/* Botão de adicionar cartão seria implementado adicionando uma conta nova do tipo CREDIT_CARD */}
+          <button
+            onClick={() => setShowCreateCard((prev) => !prev)}
+            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold flex items-center gap-2"
+          >
+            <Plus size={16} /> Novo cartão
+          </button>
        </div>
+
+       {showCreateCard && (
+         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+            <h3 className="font-bold text-gray-800">Adicionar cartão</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                placeholder="Nome do cartão"
+                value={newCard.name}
+                onChange={(e) => setNewCard((prev) => ({ ...prev, name: e.target.value }))}
+                className="p-3 bg-gray-50 rounded-xl border"
+              />
+              <input
+                type="number"
+                placeholder="Limite"
+                value={newCard.creditLimit}
+                onChange={(e) => setNewCard((prev) => ({ ...prev, creditLimit: e.target.value }))}
+                className="p-3 bg-gray-50 rounded-xl border"
+              />
+              <input
+                type="number"
+                min="1"
+                max="31"
+                placeholder="Dia de fechamento"
+                value={newCard.closingDay}
+                onChange={(e) => setNewCard((prev) => ({ ...prev, closingDay: e.target.value }))}
+                className="p-3 bg-gray-50 rounded-xl border"
+              />
+              <input
+                type="number"
+                min="1"
+                max="31"
+                placeholder="Dia de vencimento"
+                value={newCard.dueDay}
+                onChange={(e) => setNewCard((prev) => ({ ...prev, dueDay: e.target.value }))}
+                className="p-3 bg-gray-50 rounded-xl border"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowCreateCard(false)} className="px-3 py-2 rounded-lg border">Cancelar</button>
+              <button onClick={handleCreateCard} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-bold">Salvar cartão</button>
+            </div>
+         </div>
+       )}
 
        {cards.length === 0 && (
          <div className="text-center p-12 bg-gray-100 rounded-3xl border border-dashed border-gray-300">
