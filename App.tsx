@@ -11,12 +11,11 @@ import CategoryManager from './components/CategoryManager';
 import CreditCards from './components/CreditCards';
 import Transactions from './components/Transactions';
 import Budgets from './components/Budgets';
-import Investments from './components/Investments';
-import { LayoutDashboard, PieChart, Bot, Settings as SettingsIcon, Menu, X, ArrowUpCircle, ArrowDownCircle, Target, Tags, CreditCard, List, Calculator, Landmark } from 'lucide-react';
+import { LayoutDashboard, PieChart, Bot, Settings as SettingsIcon, Menu, X, ArrowUpCircle, ArrowDownCircle, Target, Tags, CreditCard, List, Calculator } from 'lucide-react';
 import { TransactionType, Transaction } from './types';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'TRANSACTIONS' | 'REPORTS' | 'GOALS' | 'CARDS' | 'BUDGETS' | 'INVESTMENTS' | 'CATEGORIES' | 'AI' | 'SETTINGS'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'TRANSACTIONS' | 'REPORTS' | 'GOALS' | 'CARDS' | 'BUDGETS' | 'CATEGORIES' | 'AI' | 'SETTINGS'>('DASHBOARD');
   
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<TransactionType>('EXPENSE');
@@ -96,7 +95,6 @@ const App: React.FC = () => {
             <NavItem id="TRANSACTIONS" icon={List} label="Extrato" />
             <NavItem id="CARDS" icon={CreditCard} label="Cartões" />
             <NavItem id="BUDGETS" icon={Calculator} label="Orçamentos" />
-            <NavItem id="INVESTMENTS" icon={Landmark} label="Investimentos" />
             <NavItem id="GOALS" icon={Target} label="Metas" />
             
             <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-6">Gestão</p>
@@ -128,7 +126,6 @@ const App: React.FC = () => {
                 <NavItem id="TRANSACTIONS" icon={List} label="Extrato Completo" />
                 <NavItem id="CARDS" icon={CreditCard} label="Cartões de Crédito" />
                 <NavItem id="BUDGETS" icon={Calculator} label="Orçamentos" />
-                <NavItem id="INVESTMENTS" icon={Landmark} label="Investimentos" />
                 <NavItem id="GOALS" icon={Target} label="Metas" />
                 <NavItem id="REPORTS" icon={PieChart} label="Relatórios" />
                 <NavItem id="CATEGORIES" icon={Tags} label="Categorias" />
@@ -148,7 +145,6 @@ const App: React.FC = () => {
                {activeTab === 'TRANSACTIONS' && <Transactions onEdit={handleEditTransaction} />}
                {activeTab === 'CARDS' && <CreditCards />}
                {activeTab === 'BUDGETS' && <Budgets />}
-               {activeTab === 'INVESTMENTS' && <Investments />}
                {activeTab === 'REPORTS' && <Reports />}
                {activeTab === 'GOALS' && <Goals />}
                {activeTab === 'CATEGORIES' && <CategoryManager />}
