@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { ChevronLeft, ChevronRight, ArrowRightLeft, Calendar, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRightLeft, Calendar } from 'lucide-react';
 import { Transaction } from '../types';
 
 interface Props {
@@ -16,84 +17,49 @@ const Transactions: React.FC<Props> = ({ onEdit }) => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const itemsPerPage = 20;
 
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / itemsPerPage));
+  const paginatedData = filteredTransactions.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
-  const monthlyIncome = filteredTransactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
-  const monthlyExpense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
-  const monthlyBalance = monthlyIncome - monthlyExpense;
-
-  const sortedTransactions = useMemo(() => {
-    const arr = [...filteredTransactions];
-    arr.sort((a, b) => {
-      const categoryA = data.categories.find(c => c.id === a.categoryId)?.name || '';
-      const categoryB = data.categories.find(c => c.id === b.categoryId)?.name || '';
-      const accountA = data.accounts.find(ac => ac.id === a.accountId)?.name || '';
-      const accountB = data.accounts.find(ac => ac.id === b.accountId)?.name || '';
-
-      const compare = (x: string | number, y: string | number) => {
-        if (typeof x === 'number' && typeof y === 'number') return x - y;
-        return String(x).localeCompare(String(y), 'pt-BR');
-      };
-
-      let res = 0;
-      switch (sortBy) {
-        case 'date': res = compare(new Date(a.date).getTime(), new Date(b.date).getTime()); break;
-        case 'description': res = compare(a.description, b.description); break;
-        case 'category': res = compare(categoryA, categoryB); break;
-        case 'account': res = compare(accountA, accountB); break;
-        case 'amount': res = compare(a.amount, b.amount); break;
-        case 'status': res = compare(a.status, b.status); break;
-      }
-      return sortDir === 'asc' ? res : -res;
-    });
-    return arr;
-  }, [filteredTransactions, sortBy, sortDir, data.categories, data.accounts]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / itemsPerPage));
-  const paginatedData = sortedTransactions.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   useEffect(() => {
     setPage((prev) => Math.min(Math.max(prev, 1), totalPages));
   }, [totalPages]);
 
-  const toggleSort = (key: SortKey) => {
-    if (sortBy === key) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(key); setSortDir('asc'); }
-  };
-
-  const Header = ({ label, keyName }: { label: string; keyName: SortKey }) => (
-    <button onClick={() => toggleSort(keyName)} className="inline-flex items-center gap-1 hover:text-gray-700">
-      {label} <ArrowUpDown size={12} />
-    </button>
-  );
-
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Extrato</h1>
-          <p className="text-gray-500 text-sm">Gerencie todos os seus lançamentos.</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-2">
-            <button onClick={() => changeMonth(-1)} className="p-1 rounded hover:bg-gray-100" title="Mês anterior"><ChevronLeft size={16} /></button>
-            <span className="text-sm font-semibold text-gray-700 min-w-[130px] text-center flex items-center justify-center gap-1"><Calendar size={14} /> {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
-            <button onClick={() => changeMonth(1)} className="p-1 rounded hover:bg-gray-100" title="Próximo mês"><ChevronRight size={16} /></button>
-          </div>
-          <select className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium" value={advancedFilters.type || ''} onChange={e => setAdvancedFilters({ ...advancedFilters, type: e.target.value as any || undefined })}>
-            <option value="">Todos os Tipos</option><option value="INCOME">Receitas</option><option value="EXPENSE">Despesas</option><option value="TRANSFER">Transferências</option>
-          </select>
-          <select className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium" value={advancedFilters.status || ''} onChange={e => setAdvancedFilters({ ...advancedFilters, status: e.target.value as any || undefined })}>
-            <option value="">Todos os Status</option><option value="COMPLETED">Pagos / Recebidos</option><option value="PENDING">Pendentes</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 p-4"><p className="text-xs uppercase text-gray-400 font-bold">Entradas do período</p><p className="text-2xl font-bold text-emerald-600">{formatCurrency(monthlyIncome)}</p></div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4"><p className="text-xs uppercase text-gray-400 font-bold">Saídas do período</p><p className="text-2xl font-bold text-rose-600">{formatCurrency(monthlyExpense)}</p></div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-4"><p className="text-xs uppercase text-gray-400 font-bold">Balanço geral do mês</p><p className={`text-2xl font-bold ${monthlyBalance >= 0 ? 'text-blue-600' : 'text-rose-700'}`}>{formatCurrency(monthlyBalance)}</p></div>
+         <div>
+            <h1 className="text-2xl font-bold text-gray-900">Extrato</h1>
+            <p className="text-gray-500 text-sm">Gerencie todos os seus lançamentos.</p>
+         </div>
+         
+         <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-2">
+              <button onClick={() => changeMonth(-1)} className="p-1 rounded hover:bg-gray-100" title="Mês anterior"><ChevronLeft size={16} /></button>
+              <span className="text-sm font-semibold text-gray-700 min-w-[120px] text-center flex items-center justify-center gap-1"><Calendar size={14} /> {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+              <button onClick={() => changeMonth(1)} className="p-1 rounded hover:bg-gray-100" title="Próximo mês"><ChevronRight size={16} /></button>
+            </div>
+            <select 
+              className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-100"
+              value={advancedFilters.type || ''}
+              onChange={e => setAdvancedFilters({...advancedFilters, type: e.target.value as any || undefined})}
+            >
+               <option value="">Todos os Tipos</option>
+               <option value="INCOME">Receitas</option>
+               <option value="EXPENSE">Despesas</option>
+               <option value="TRANSFER">Transferências</option>
+            </select>
+            <select 
+              className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-100"
+              value={advancedFilters.status || ''}
+              onChange={e => setAdvancedFilters({...advancedFilters, status: e.target.value as any || undefined})}
+            >
+               <option value="">Todos os Status</option>
+               <option value="COMPLETED">Pagos / Recebidos</option>
+               <option value="PENDING">Pendentes</option>
+            </select>
+         </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden">
@@ -124,19 +90,65 @@ const Transactions: React.FC<Props> = ({ onEdit }) => {
                     <td className="p-4 text-center"><button onClick={() => toggleTransactionStatus(t.id)} className={`text-xs font-bold px-2 py-1 rounded-md ${t.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{t.status === 'COMPLETED' ? 'Pago' : 'Pendente'}</button></td>
                     <td className="p-4 text-center"><div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => onEdit(t)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs font-bold">Editar</button><button onClick={() => { if (confirm('Excluir?')) deleteTransaction(t.id); }} className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg text-xs font-bold">Excluir</button></div></td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Página {page} de {totalPages}</span>
-          <div className="flex gap-2">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronLeft size={16} /></button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronRight size={16} /></button>
-          </div>
-        </div>
+               </thead>
+               <tbody className="divide-y divide-gray-100">
+                  {paginatedData.map(t => {
+                     const category = data.categories.find(c => c.id === t.categoryId);
+                     const account = data.accounts.find(a => a.id === t.accountId);
+                     
+                     return (
+                        <tr key={t.id} className="hover:bg-gray-50 transition-colors group">
+                           <td className="p-4 text-sm text-gray-500 font-medium whitespace-nowrap">
+                              {t.date.split('-').reverse().join('/')}
+                           </td>
+                           <td className="p-4">
+                              <div className="font-bold text-gray-900">{t.description}</div>
+                              {t.installment && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded ml-1 font-bold">x{t.installment.current}</span>}
+                           </td>
+                           <td className="p-4">
+                              {t.type === 'TRANSFER' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold">
+                                   <ArrowRightLeft size={12} /> Transf.
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold" style={{backgroundColor: category ? `${category.color}15` : '#f3f4f6', color: category?.color}}>
+                                   {category?.name || 'Sem Categoria'}
+                                </span>
+                              )}
+                           </td>
+                           <td className="p-4 text-sm text-gray-500">{account?.name}</td>
+                           <td className={`p-4 text-right font-bold ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                              {t.type === 'EXPENSE' && '- '}{formatCurrency(t.amount)}
+                           </td>
+                           <td className="p-4 text-center">
+                              <button 
+                                onClick={() => toggleTransactionStatus(t.id)}
+                                className={`text-xs font-bold px-2 py-1 rounded-md transition-colors ${t.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}
+                              >
+                                {t.status === 'COMPLETED' ? 'Pago' : 'Pendente'}
+                              </button>
+                           </td>
+                           <td className="p-4 text-center">
+                              <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button onClick={() => onEdit(t)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg text-xs font-bold">Editar</button>
+                                 <button onClick={() => { if(confirm('Excluir?')) deleteTransaction(t.id); }} className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg text-xs font-bold">Excluir</button>
+                              </div>
+                           </td>
+                        </tr>
+                     )
+                  })}
+               </tbody>
+            </table>
+         </div>
+         
+         {/* Pagination */}
+         <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-xs text-gray-400">Página {page} de {totalPages}</span>
+            <div className="flex gap-2">
+               <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronLeft size={16} /></button>
+               <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronRight size={16} /></button>
+            </div>
+         </div>
       </div>
     </div>
   );

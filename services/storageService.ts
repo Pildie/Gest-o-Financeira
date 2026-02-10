@@ -1,7 +1,6 @@
-import { AppData, Category, Account, Goal, Transaction, InvestmentAsset } from '../types';
+import { AppData, Category, Account, Goal } from '../types';
 
-const STORAGE_KEYS = ['finances_local_v3', 'finances_local_v2', 'finances_local_v1', 'finances_local'];
-const PRIMARY_STORAGE_KEY = STORAGE_KEYS[0];
+const STORAGE_KEY = 'finances_local_v3';
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c1', name: 'Alimentação', type: 'EXPENSE', color: '#ef4444', icon: 'Utensils', subcategories: ['Mercado', 'Restaurante', 'Ifood'] },
@@ -32,102 +31,27 @@ const DEFAULT_DATA: AppData = {
   investments: [],
 };
 
-const randomId = (prefix: string) => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
-const dedupeById = <T extends { id?: string }>(items: unknown, prefix: string): T[] => {
-  if (!Array.isArray(items)) return [];
-  const map = new Map<string, T>();
-
-  items.forEach((raw, index) => {
-    if (!raw || typeof raw !== 'object') return;
-    const candidate = raw as T;
-    const rawId = candidate.id;
-    const hasId = typeof rawId === 'string' && rawId.trim().length > 0;
-    let id = hasId ? rawId.trim() : `${prefix}-${index + 1}`;
-    while (map.has(id)) id = randomId(prefix);
-    map.set(id, { ...candidate, id } as T);
-  });
-
-  return Array.from(map.values());
-};
-
-const mergeAccountsByType = (accounts: Account[] = []): Account[] => {
-  const existingByType = new Set(accounts.map(acc => acc.type));
-  const normalized = [...accounts];
-
+const mergeAccounts = (accounts: Account[] = []): Account[] => {
+  const map = new Map(accounts.map(acc => [acc.id, acc]));
   DEFAULT_ACCOUNTS.forEach(acc => {
-    if (!existingByType.has(acc.type)) {
-      normalized.push({ ...acc, id: randomId('account') });
-    }
+    if (!map.has(acc.id)) map.set(acc.id, acc);
   });
-
-  return normalized;
-};
-
-const pickBestStoredPayload = (): unknown => {
-  let bestScore = -1;
-  let bestPayload: unknown = null;
-
-  STORAGE_KEYS.forEach(key => {
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw);
-      const score =
-        (Array.isArray(parsed?.transactions) ? parsed.transactions.length : 0) * 1000 +
-        (Array.isArray(parsed?.accounts) ? parsed.accounts.length : 0) * 100 +
-        (Array.isArray(parsed?.categories) ? parsed.categories.length : 0) * 10 +
-        (Array.isArray(parsed?.goals) ? parsed.goals.length : 0);
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestPayload = parsed;
-      }
-    } catch (error) {
-      console.warn(`Ignoring invalid storage payload at key ${key}`, error);
-    }
-  });
-
-  return bestPayload;
-};
-
-const sanitizeData = (parsed: any): AppData => {
-  const categories = dedupeById<Category>(parsed?.categories, 'category').map(category => ({
-    ...category,
-    subcategories: Array.isArray(category.subcategories) ? category.subcategories : [],
-  }));
-
-  const accounts = mergeAccountsByType(dedupeById<Account>(parsed?.accounts, 'account'));
-  const accountIdSet = new Set(accounts.map(account => account.id));
-
-  const transactions = dedupeById<Transaction>(parsed?.transactions, 'transaction').map(transaction => {
-    const fallbackAccountId = accounts[0]?.id || randomId('account');
-    return {
-      ...transaction,
-      accountId: accountIdSet.has(transaction.accountId) ? transaction.accountId : fallbackAccountId,
-      toAccountId: transaction.toAccountId && accountIdSet.has(transaction.toAccountId) ? transaction.toAccountId : undefined,
-    };
-  });
-
-  const goals = dedupeById<Goal>(parsed?.goals, 'goal');
-
-  return {
-    transactions,
-    categories: categories.length ? categories : DEFAULT_CATEGORIES,
-    accounts: accounts.length ? accounts : DEFAULT_ACCOUNTS,
-    goals: goals.length ? goals : DEFAULT_GOALS,
-    investments: dedupeById<InvestmentAsset>(parsed?.investments, 'investment'),
-  };
+  return Array.from(map.values());
 };
 
 export const loadData = (): AppData => {
   try {
-    const parsed = pickBestStoredPayload();
-    if (parsed) return sanitizeData(parsed);
+    const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('finances_local_v2');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        transactions: parsed.transactions || [],
+        categories: parsed.categories || DEFAULT_CATEGORIES,
+        accounts: mergeAccounts(parsed.accounts || []),
+        goals: parsed.goals || DEFAULT_GOALS,
+        investments: parsed.investments || [],
+      };
+    }
   } catch (e) {
     console.error('Failed to load data', e);
   }
