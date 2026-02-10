@@ -242,6 +242,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
+
+  const addAccount = (account: Omit<Account, 'id'>) => {
+    setData(prev => ({ ...prev, accounts: [...prev.accounts, { ...account, id: crypto.randomUUID() }] }));
+  };
+
+  const deleteAccount = (id: string) => {
+    setData(prev => ({
+      ...prev,
+      accounts: prev.accounts.filter(a => a.id !== id),
+      transactions: prev.transactions.filter(t => t.accountId !== id && t.toAccountId !== id),
+    }));
+  };
+
   const addCategory = (c: Omit<Category, 'id'>) => {
     setData(prev => ({ ...prev, categories: [...prev.categories, { ...c, id: crypto.randomUUID(), subcategories: c.subcategories || [] }] }));
   };
@@ -412,7 +425,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       data, currentDate, changeMonth, 
       searchQuery, setSearchQuery,
       addTransaction, editTransaction, deleteTransaction, toggleTransactionStatus, 
-      updateAccountBalance, updateAccountDetails,
+      updateAccountBalance, updateAccountDetails, addAccount, deleteAccount,
       addCategory, updateCategory, deleteCategory, addSubcategory,
       addGoal, updateGoal, deleteGoal,
       addInvestment, updateInvestment, deleteInvestment,

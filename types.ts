@@ -114,7 +114,9 @@ export interface FinanceContextType {
   toggleTransactionStatus: (id: string) => void;
   
   updateAccountBalance: (id: string, newBalance: number) => void;
-  updateAccountDetails: (id: string, details: Partial<Account>) => void; // Novo
+  updateAccountDetails: (id: string, details: Partial<Account>) => void;
+  addAccount: (account: Omit<Account, 'id'>) => void;
+  deleteAccount: (id: string) => void;
   
   // Categorias
   addCategory: (c: Omit<Category, 'id'>) => void;

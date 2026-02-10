@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { Download, Upload, Trash2, FileText, Cloud, HardDrive } from 'lucide-react';
+import { Download, Upload, Trash2, Cloud, HardDrive, Plus } from 'lucide-react';
+import { Account } from '../types';
 
 const AUTO_BACKUP_KEY = 'financas_auto_backup_handle_supported';
 
@@ -30,10 +31,7 @@ const Settings: React.FC = () => {
       // @ts-ignore File System Access API
       const handle = await window.showSaveFilePicker({
         suggestedName: 'meu_financeiro.json',
-        types: [{
-          description: 'Banco de Dados JSON',
-          accept: { 'application/json': ['.json'] },
-        }],
+        types: [{ description: 'Banco de Dados JSON', accept: { 'application/json': ['.json'] } }],
       });
 
       cloudHandleRef.current = handle;
@@ -85,18 +83,12 @@ const Settings: React.FC = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      if (importData(content)) {
-        alert('Backup restaurado com sucesso!');
-        window.location.reload();
-      } else {
-        alert('Arquivo de backup inválido.');
-      }
+      if (importData(content)) { alert('Backup restaurado com sucesso!'); window.location.reload(); }
+      else alert('Arquivo de backup inválido.');
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -128,25 +120,30 @@ const Settings: React.FC = () => {
     e.target.value = '';
   };
   const handleOFXChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       const count = importOFX(content, targetAccountForOFX);
-      if (count > 0) {
-        alert(`${count} transações importadas com sucesso!`);
-      } else {
-        alert('Nenhuma transação encontrada ou erro ao ler arquivo OFX.');
-      }
+      alert(count > 0 ? `${count} transações importadas com sucesso!` : 'Nenhuma transação encontrada ou erro ao ler OFX.');
+    };
+    reader.readAsText(file); e.target.value = '';
+  };
+
+  const handleCSVChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const count = importCSV(content, targetAccountForCSV, csvSeparator);
+      alert(count > 0 ? `${count} transações CSV importadas com sucesso!` : 'Nenhuma transação importada. Verifique o separador e os campos.');
     };
     reader.readAsText(file);
     e.target.value = '';
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-20">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20">
       <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -216,6 +213,14 @@ const Settings: React.FC = () => {
             <button onClick={handleImportClick} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 shadow-sm">Selecionar</button>
             <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100"><h2 className="text-lg font-semibold text-gray-800">Backup Manual & Importação</h2></div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100"><div className="flex items-center gap-4"><div className="p-3 bg-blue-100 text-blue-600 rounded-full"><Download size={20} /></div><div><p className="font-medium text-gray-900">Exportar Backup</p></div></div><button onClick={handleExport} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium">Baixar</button></div>
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100"><div className="flex items-center gap-4"><div className="p-3 bg-emerald-100 text-emerald-600 rounded-full"><Upload size={20} /></div><div><p className="font-medium text-gray-900">Restaurar Backup</p></div></div><button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium">Selecionar</button><input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} /></div>
 
           <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
             <div className="flex items-center gap-4">
@@ -261,6 +266,11 @@ const Settings: React.FC = () => {
             <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.txt" onChange={handleCSVChange} />
           </div>
 
+          <div className="p-4 bg-teal-50 rounded-lg border border-teal-100 space-y-3">
+            <p className="font-medium text-gray-900">Importar CSV (com separador)</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2"><select value={targetAccountForCSV} onChange={e => setTargetAccountForCSV(e.target.value)} className="p-2 bg-white border border-teal-200 rounded-lg text-sm">{data.accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}</select><select value={csvSeparator} onChange={e => setCsvSeparator(e.target.value)} className="p-2 bg-white border border-teal-200 rounded-lg text-sm"><option value=";">;</option><option value=",">,</option><option value="|">|</option><option value={"\t"}>TAB</option></select><button onClick={() => csvInputRef.current?.click()} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-bold">Importar CSV</button></div>
+            <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.txt" onChange={handleCSVChange} />
+          </div>
         </div>
       </div>
 
