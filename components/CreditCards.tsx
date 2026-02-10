@@ -11,6 +11,22 @@ const CreditCards: React.FC = () => {
   // Filtra apenas contas do tipo CREDIT_CARD
   const cards = data.accounts.filter(a => a.type === 'CREDIT_CARD');
 
+
+  const cardIds = new Set(cards.map(c => c.id));
+  const pendingCardExpenses = data.transactions.filter(t => t.type === 'EXPENSE' && t.status === 'PENDING' && cardIds.has(t.accountId));
+  const outstandingInstallments = pendingCardExpenses.filter(t => !!t.installment);
+  const renegotiations = pendingCardExpenses.filter(t => (t.description || '').toLowerCase().includes('renegoc') || (t.tags || []).some(tag => tag.toLowerCase().includes('renegoc')));
+
+  const pendingByMonth = pendingCardExpenses.reduce<Record<string, number>>((acc, t) => {
+    const month = t.date.slice(0, 7);
+    acc[month] = (acc[month] || 0) + t.amount;
+    return acc;
+  }, {});
+
+  const nextMonths = Object.entries(pendingByMonth).sort((a,b) => a[0].localeCompare(b[0])).slice(0, 6);
+  const totalOutstanding = pendingCardExpenses.reduce((s, t) => s + t.amount, 0);
+  const installmentsOutstanding = outstandingInstallments.reduce((s, t) => s + t.amount, 0);
+  const renegotiationOutstanding = renegotiations.reduce((s, t) => s + t.amount, 0);
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const handleSave = (id: string, form: any) => {
@@ -74,6 +90,38 @@ const CreditCards: React.FC = () => {
            <p className="text-sm text-gray-400">Adicione uma nova conta do tipo "Cartão de Crédito" nas configurações.</p>
          </div>
        )}
+
+
+       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+         <h3 className="font-bold text-gray-900 mb-4">Indicadores de quitação antecipada</h3>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+           <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+             <p className="text-xs font-bold text-gray-400 uppercase">Total pendente</p>
+             <p className="text-xl font-bold text-gray-900">{formatCurrency(totalOutstanding)}</p>
+           </div>
+           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+             <p className="text-xs font-bold text-amber-600 uppercase">Parcelas a vencer</p>
+             <p className="text-xl font-bold text-amber-700">{formatCurrency(installmentsOutstanding)}</p>
+             <p className="text-xs text-amber-600">{outstandingInstallments.length} lançamentos parcelados</p>
+           </div>
+           <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
+             <p className="text-xs font-bold text-indigo-600 uppercase">Renegociações</p>
+             <p className="text-xl font-bold text-indigo-700">{formatCurrency(renegotiationOutstanding)}</p>
+             <p className="text-xs text-indigo-600">{renegotiations.length} lançamentos identificados</p>
+           </div>
+         </div>
+
+         <div className="space-y-2">
+           <p className="text-xs font-bold text-gray-400 uppercase">Comprometimento projetado (6 meses)</p>
+           {nextMonths.length === 0 && <p className="text-sm text-gray-400">Sem despesas pendentes de cartão.</p>}
+           {nextMonths.map(([month, value]) => (
+             <div key={month} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+               <span className="text-sm font-medium text-gray-700">{new Date(month + '-01T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+               <span className="font-bold text-gray-900">{formatCurrency(value)}</span>
+             </div>
+           ))}
+         </div>
+       </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cards.map(card => {

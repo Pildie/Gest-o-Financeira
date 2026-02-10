@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { ChevronLeft, ChevronRight, ArrowRightLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRightLeft, Calendar } from 'lucide-react';
 import { Transaction } from '../types';
 
 interface Props {
@@ -9,14 +9,18 @@ interface Props {
 }
 
 const Transactions: React.FC<Props> = ({ onEdit }) => {
-  const { filteredTransactions, data, advancedFilters, setAdvancedFilters, toggleTransactionStatus, deleteTransaction } = useFinance();
+  const { filteredTransactions, data, advancedFilters, setAdvancedFilters, toggleTransactionStatus, deleteTransaction, currentDate, changeMonth } = useFinance();
   const [page, setPage] = useState(1);
   const itemsPerPage = 20;
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / itemsPerPage));
   const paginatedData = filteredTransactions.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+  useEffect(() => {
+    setPage((prev) => Math.min(Math.max(prev, 1), totalPages));
+  }, [totalPages]);
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
@@ -26,7 +30,12 @@ const Transactions: React.FC<Props> = ({ onEdit }) => {
             <p className="text-gray-500 text-sm">Gerencie todos os seus lançamentos.</p>
          </div>
          
-         <div className="flex gap-2">
+         <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2 py-2">
+              <button onClick={() => changeMonth(-1)} className="p-1 rounded hover:bg-gray-100" title="Mês anterior"><ChevronLeft size={16} /></button>
+              <span className="text-sm font-semibold text-gray-700 min-w-[120px] text-center flex items-center justify-center gap-1"><Calendar size={14} /> {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+              <button onClick={() => changeMonth(1)} className="p-1 rounded hover:bg-gray-100" title="Próximo mês"><ChevronRight size={16} /></button>
+            </div>
             <select 
               className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-100"
               value={advancedFilters.type || ''}
@@ -115,10 +124,10 @@ const Transactions: React.FC<Props> = ({ onEdit }) => {
          
          {/* Pagination */}
          <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-400">Página {page} de {totalPages || 1}</span>
+            <span className="text-xs text-gray-400">Página {page} de {totalPages}</span>
             <div className="flex gap-2">
                <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronLeft size={16} /></button>
-               <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronRight size={16} /></button>
+               <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages} className="p-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"><ChevronRight size={16} /></button>
             </div>
          </div>
       </div>

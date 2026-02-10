@@ -1,7 +1,6 @@
-
 import { AppData, Category, Account, Goal } from '../types';
 
-const STORAGE_KEY = 'finances_local_v2'; // Bump version
+const STORAGE_KEY = 'finances_local_v3';
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c1', name: 'Alimentação', type: 'EXPENSE', color: '#ef4444', icon: 'Utensils', subcategories: ['Mercado', 'Restaurante', 'Ifood'] },
@@ -10,13 +9,14 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c4', name: 'Lazer', type: 'EXPENSE', color: '#8b5cf6', icon: 'Film', subcategories: ['Cinema', 'Viagem', 'Assinaturas'] },
   { id: 'c5', name: 'Saúde', type: 'EXPENSE', color: '#ec4899', icon: 'Heart', subcategories: ['Farmácia', 'Médico', 'Plano de Saúde'] },
   { id: 'c6', name: 'Salário', type: 'INCOME', color: '#10b981', icon: 'Briefcase', subcategories: ['Salário Mensal', '13º Salário', 'Férias'] },
-  { id: 'c7', name: 'Investimentos', type: 'INCOME', color: '#06b6d4', icon: 'TrendingUp', subcategories: ['Dividendos', 'Rendimento Poupança'] },
+  { id: 'c7', name: 'Investimentos', type: 'INCOME', color: '#06b6d4', icon: 'TrendingUp', subcategories: ['Dividendos', 'Rendimento Poupança', 'Aporte CDB/CDI/Fundos'] },
 ];
 
 const DEFAULT_ACCOUNTS: Account[] = [
   { id: 'a1', name: 'Carteira (Dinheiro)', type: 'WALLET', balance: 0 },
   { id: 'a2', name: 'Conta Corrente', type: 'CHECKING', balance: 0 },
   { id: 'a3', name: 'Poupança / Reserva', type: 'SAVINGS', balance: 0 },
+  { id: 'a4', name: 'Corretora / Investimentos', type: 'INVESTMENT', balance: 0 },
 ];
 
 const DEFAULT_GOALS: Goal[] = [
@@ -27,19 +27,33 @@ const DEFAULT_DATA: AppData = {
   transactions: [],
   categories: DEFAULT_CATEGORIES,
   accounts: DEFAULT_ACCOUNTS,
-  goals: DEFAULT_GOALS
+  goals: DEFAULT_GOALS,
+  investments: [],
+};
+
+const mergeAccounts = (accounts: Account[] = []): Account[] => {
+  const map = new Map(accounts.map(acc => [acc.id, acc]));
+  DEFAULT_ACCOUNTS.forEach(acc => {
+    if (!map.has(acc.id)) map.set(acc.id, acc);
+  });
+  return Array.from(map.values());
 };
 
 export const loadData = (): AppData => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('finances_local_v2');
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Merge simples para garantir que novos campos existam em dados antigos
-      return { ...DEFAULT_DATA, ...parsed };
+      return {
+        transactions: parsed.transactions || [],
+        categories: parsed.categories || DEFAULT_CATEGORIES,
+        accounts: mergeAccounts(parsed.accounts || []),
+        goals: parsed.goals || DEFAULT_GOALS,
+        investments: parsed.investments || [],
+      };
     }
   } catch (e) {
-    console.error("Failed to load data", e);
+    console.error('Failed to load data', e);
   }
   return DEFAULT_DATA;
 };
@@ -48,6 +62,6 @@ export const saveData = (data: AppData): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
-    console.error("Failed to save data", e);
+    console.error('Failed to save data', e);
   }
 };
