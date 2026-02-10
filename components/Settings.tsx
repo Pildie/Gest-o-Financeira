@@ -5,14 +5,21 @@ import { Download, Upload, Trash2, FileText, Cloud, HardDrive } from 'lucide-rea
 const AUTO_BACKUP_KEY = 'financas_auto_backup_handle_supported';
 
 const Settings: React.FC = () => {
-  const { exportData, importData, importOFX, data } = useFinance();
+  const { exportData, importData, importOFX, importCSV, data } = useFinance();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
+codex/compare-code-with-mobills-pro-for-improvements-oda9ki
+  const csvInputRef = useRef<HTMLInputElement>(null);
+main
   const cloudHandleRef = useRef<any>(null);
 
   const [targetAccountForOFX, setTargetAccountForOFX] = useState(data.accounts[0]?.id || '');
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(localStorage.getItem(AUTO_BACKUP_KEY) === 'true');
   const [lastAutoBackup, setLastAutoBackup] = useState<string | null>(null);
+codex/compare-code-with-mobills-pro-for-improvements-oda9ki
+  const [csvSeparator, setCsvSeparator] = useState(';');
+  const [targetAccountForCSV, setTargetAccountForCSV] = useState(data.accounts[0]?.id || '');
+main
 
   const writeCloudBackup = async () => {
     if (!cloudHandleRef.current) return;
@@ -91,6 +98,31 @@ const Settings: React.FC = () => {
     e.target.value = '';
   };
 
+
+  const handleCSVClick = () => {
+    if (!targetAccountForCSV) {
+      alert('Selecione uma conta para importar o CSV.');
+      return;
+    }
+    csvInputRef.current?.click();
+  };
+
+  const handleCSVChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const count = importCSV(content, targetAccountForCSV, csvSeparator);
+      if (count > 0) {
+        alert(`${count} transações CSV importadas com sucesso!`);
+      } else {
+        alert('Nenhuma transação importada. Verifique o separador e os campos do arquivo.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
   const handleOFXChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -196,8 +228,37 @@ const Settings: React.FC = () => {
                 {data.accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
               </select>
               <button onClick={handleOFXClick} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700">Importar OFX</button>
+codex/compare-code-with-mobills-pro-for-improvements-oda9ki
             </div>
             <input type="file" ref={ofxInputRef} className="hidden" accept=".ofx" onChange={handleOFXChange} />
+          </div>
+
+          <div className="p-4 bg-teal-50 rounded-lg border border-teal-100 space-y-3">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-teal-100 text-teal-600 rounded-full"><FileText size={20} /></div>
+              <div>
+                <p className="font-medium text-gray-900">Importar Extrato (CSV)</p>
+                <p className="text-xs text-gray-500">Informe o separador usado pelo banco (; , | ou TAB).</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <select value={targetAccountForCSV} onChange={e => setTargetAccountForCSV(e.target.value)} className="p-2 bg-white border border-teal-200 rounded-lg text-sm">
+                <option value="">Conta destino...</option>
+                {data.accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+              </select>
+              <select value={csvSeparator} onChange={e => setCsvSeparator(e.target.value)} className="p-2 bg-white border border-teal-200 rounded-lg text-sm">
+                <option value=";">Ponto e vírgula (;)</option>
+                <option value=",">Vírgula (,)</option>
+                <option value="|">Pipe (|)</option>
+                <option value={"\t"}>TAB</option>
+              </select>
+              <button onClick={handleCSVClick} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-teal-700">Importar CSV</button>
+            </div>
+            <input type="file" ref={csvInputRef} className="hidden" accept=".csv,.txt" onChange={handleCSVChange} />
+            </div>
+            <input type="file" ref={ofxInputRef} className="hidden" accept=".ofx" onChange={handleOFXChange} />
+main
           </div>
         </div>
       </div>
