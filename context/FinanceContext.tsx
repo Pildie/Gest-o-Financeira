@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import { AppData, FinanceContextType, Transaction, CategoryStats, Category, Goal, TransactionStatus, Account, FilterOptions, InvestmentAsset } from '../types';
 import { loadData, saveData } from '../services/storageService';
 import { parseOFX } from '../services/ofxParser';
+import { getInvoiceMonth } from '../services/creditCardInvoice';
+import { loadAppDataFromIndexedDb, migrateLocalStorageToIndexedDb, saveAppDataToIndexedDb } from '../services/indexedDbService';
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
@@ -78,7 +80,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   useEffect(() => {
+    loadAppDataFromIndexedDb()
+      .then((indexedData) => {
+        if (indexedData) {
+          setData(indexedData);
+          return;
+        }
+        return migrateLocalStorageToIndexedDb(loadData()).then((migrated) => setData(migrated));
+      })
+      .catch(() => {
+        setData(loadData());
+      });
+  }, []);
+
+  useEffect(() => {
     saveData(data);
+    saveAppDataToIndexedDb(data).catch(() => undefined);
   }, [data]);
 
   const changeMonth = (offset: number) => {
@@ -191,13 +208,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     if (options?.installments && options.installments > 1) {
       const installmentValue = parseFloat((baseTransaction.amount / options.installments).toFixed(2));
+      const installmentId = crypto.randomUUID();
       for (let i = 0; i < options.installments; i++) {
         const date = new Date(baseTransaction.date);
         date.setMonth(date.getMonth() + i);
+        const account = updatedAccounts.find((a) => a.id === baseTransaction.accountId);
+        const invoiceMonth = account?.type === 'CREDIT_CARD' && account.closingDay
+          ? getInvoiceMonth(date, account.closingDay)
+          : undefined;
+
         newTransactions.push({
           ...baseTransaction,
           id: crypto.randomUUID(),
           groupId,
+          installmentId,
+          creditCardId: account?.type === 'CREDIT_CARD' ? account.id : undefined,
+          invoiceMonth,
           date: date.toISOString().split('T')[0],
           amount: installmentValue,
           status: i === 0 ? baseTransaction.status : 'PENDING',
@@ -210,17 +236,35 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       for (let i = 0; i < repeat; i++) {
         const date = new Date(baseTransaction.date);
         date.setMonth(date.getMonth() + i);
+        const account = updatedAccounts.find((a) => a.id === baseTransaction.accountId);
+        const invoiceMonth = account?.type === 'CREDIT_CARD' && account.closingDay
+          ? getInvoiceMonth(date, account.closingDay)
+          : undefined;
+
         newTransactions.push({
           ...baseTransaction,
           id: crypto.randomUUID(),
           groupId,
+          creditCardId: account?.type === 'CREDIT_CARD' ? account.id : undefined,
+          invoiceMonth,
           date: date.toISOString().split('T')[0],
           status: i === 0 ? baseTransaction.status : 'PENDING',
           isRecurring: true
         });
       }
     } else {
-      newTransactions.push({ ...baseTransaction, id: crypto.randomUUID() });
+      const account = updatedAccounts.find((a) => a.id === baseTransaction.accountId);
+      const baseDate = new Date(baseTransaction.date);
+      const invoiceMonth = account?.type === 'CREDIT_CARD' && account.closingDay
+        ? getInvoiceMonth(baseDate, account.closingDay)
+        : undefined;
+
+      newTransactions.push({
+        ...baseTransaction,
+        id: crypto.randomUUID(),
+        creditCardId: account?.type === 'CREDIT_CARD' ? account.id : undefined,
+        invoiceMonth,
+      });
     }
 
     newTransactions.forEach(t => {
