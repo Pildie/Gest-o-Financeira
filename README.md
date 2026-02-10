@@ -71,9 +71,7 @@ npm run build-win
 - Faturas por competência para cartão
 - Projeção de saldo futuro
 - Conciliação inteligente de OFX com deduplicação
-
 codex/compare-code-with-mobills-pro-for-improvements-oda9ki
-main
 
 
 ## Atualizar o app local (é simples)
@@ -94,4 +92,5 @@ Depois disso, substitua a pasta antiga em `dist-electron` pela nova e mantenha o
 2. Abra `dist-electron/FinancasLocal-win32-x64/`.
 3. Clique com botão direito em `FinancasLocal.exe` -> **Enviar para > Área de Trabalho (criar atalho)**.
 4. Opcional: Fixe na barra de tarefas.
+=======
 main

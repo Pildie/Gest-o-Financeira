@@ -104,6 +104,7 @@ const Investments: React.FC = () => {
     setEditingId(asset.id);
     setForm({ ...asset });
   };
+=======
 import React from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { WalletCards, TrendingUp, PiggyBank, Landmark, BadgeDollarSign } from 'lucide-react';
