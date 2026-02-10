@@ -45,6 +45,28 @@ export interface Transaction {
   isRecurring?: boolean;
 }
 
+
+export type InvestmentType = 'CDB' | 'CDI' | 'FUNDO_RF' | 'FUNDO_MULT' | 'TESOURO' | 'OUTRO';
+
+export interface InvestmentAsset {
+  id: string;
+  name: string;
+  type: InvestmentType;
+  institution: string;
+  principal: number;
+  annualRate: number; // % a.a.
+  benchmark?: 'CDI' | 'IPCA' | 'PRE';
+  benchmarkPercent?: number;
+  liquidityDays: number;
+  startDate: string;
+  expectedWithdrawalDate?: string;
+  iofRetroactive: boolean;
+  iofRate: number;
+  irRate: number;
+  irRetroactiveBase?: string;
+  notes?: string;
+}
+
 export interface Goal {
   id: string;
   name: string;
@@ -60,6 +82,7 @@ export interface AppData {
   categories: Category[];
   accounts: Account[];
   goals: Goal[];
+  investments: InvestmentAsset[];
 }
 
 export interface CategoryStats {
@@ -91,7 +114,9 @@ export interface FinanceContextType {
   toggleTransactionStatus: (id: string) => void;
   
   updateAccountBalance: (id: string, newBalance: number) => void;
-  updateAccountDetails: (id: string, details: Partial<Account>) => void; // Novo
+  updateAccountDetails: (id: string, details: Partial<Account>) => void;
+  addAccount: (account: Omit<Account, 'id'>) => void;
+  deleteAccount: (id: string) => void;
   
   // Categorias
   addCategory: (c: Omit<Category, 'id'>) => void;
@@ -104,9 +129,15 @@ export interface FinanceContextType {
   updateGoal: (id: string, currentAmount: number) => void;
   deleteGoal: (id: string) => void;
 
+  // Investimentos
+  addInvestment: (i: Omit<InvestmentAsset, 'id'>) => void;
+  updateInvestment: (id: string, details: Partial<InvestmentAsset>) => void;
+  deleteInvestment: (id: string) => void;
+
   // IO
   importData: (jsonData: string) => boolean;
   importOFX: (ofxString: string, accountId: string) => number;
+  importCSV: (csvString: string, accountId: string, separator: string) => number;
   exportData: () => string;
   
   getCategoryStats: (categoryId: string) => CategoryStats;
