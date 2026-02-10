@@ -3,6 +3,7 @@ import { useFinance } from '../context/FinanceContext';
 import { Download, Upload, Trash2, Cloud, HardDrive, FileText } from 'lucide-react';
 
 const AUTO_BACKUP_KEY = 'financas_auto_backup_handle_supported';
+const AUTO_BACKUP_LOCAL_KEY = 'financas_auto_backup_snapshot_v1';
 
 const Settings: React.FC = () => {
   const { exportData, importData, importOFX, importCSV, data } = useFinance();
@@ -25,6 +26,11 @@ const Settings: React.FC = () => {
     setLastAutoBackup(new Date().toLocaleTimeString('pt-BR'));
   };
 
+  const writeLocalAutoBackup = () => {
+    localStorage.setItem(AUTO_BACKUP_LOCAL_KEY, exportData());
+    setLastAutoBackup(new Date().toLocaleTimeString('pt-BR'));
+  };
+
   const handleCloudSync = async () => {
     try {
       // @ts-ignore File System Access API
@@ -44,19 +50,18 @@ const Settings: React.FC = () => {
   };
 
   useEffect(() => {
-    if (autoBackupEnabled && !cloudHandleRef.current) {
-      setAutoBackupEnabled(false);
-      localStorage.setItem(AUTO_BACKUP_KEY, 'false');
-    }
-  }, []);
+    if (!autoBackupEnabled) return;
 
-  useEffect(() => {
-    if (!autoBackupEnabled || !cloudHandleRef.current) return;
     const id = setInterval(() => {
-      writeCloudBackup().catch(console.error);
+      writeLocalAutoBackup();
+
+      if (cloudHandleRef.current) {
+        writeCloudBackup().catch(console.error);
+      }
     }, 5 * 60 * 1000);
+
     return () => clearInterval(id);
-  }, [autoBackupEnabled, data]);
+  }, [autoBackupEnabled, data, exportData]);
 
   const handleExport = () => {
     const jsonString = exportData();
