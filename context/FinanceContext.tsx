@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { AppData, FinanceContextType, Transaction, CategoryStats, Category, Goal, TransactionStatus, Account, FilterOptions } from '../types';
+import { AppData, FinanceContextType, Transaction, CategoryStats, Category, Goal, TransactionStatus, Account, FilterOptions, InvestmentAsset } from '../types';
 import { loadData, saveData } from '../services/storageService';
 import { parseOFX } from '../services/ofxParser';
 
@@ -11,6 +11,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({});
+
+  const ensureRequiredAccounts = (accounts: Account[]): Account[] => {
+    const required: Account[] = [
+      { id: 'a1', name: 'Carteira (Dinheiro)', type: 'WALLET', balance: 0 },
+      { id: 'a2', name: 'Conta Corrente', type: 'CHECKING', balance: 0 },
+      { id: 'a3', name: 'Poupança / Reserva', type: 'SAVINGS', balance: 0 },
+      { id: 'a4', name: 'Corretora / Investimentos', type: 'INVESTMENT', balance: 0 },
+    ];
+
+    const map = new Map((accounts || []).map(acc => [acc.id, acc]));
+    required.forEach(acc => {
+      if (!map.has(acc.id)) map.set(acc.id, acc);
+    });
+    return Array.from(map.values());
+  };
 
   useEffect(() => {
     saveData(data);
@@ -83,7 +98,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     // Ordenação: Data DESC
-    return result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       const timeA = new Date(a.date).getTime();
       const timeB = new Date(b.date).getTime();
       if (timeA !== timeB) return timeB - timeA;
@@ -249,11 +264,34 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateGoal = (id: string, currentAmount: number) => setData(prev => ({ ...prev, goals: prev.goals.map(g => g.id === id ? { ...g, currentAmount } : g) }));
   const deleteGoal = (id: string) => setData(prev => ({ ...prev, goals: prev.goals.filter(g => g.id !== id) }));
 
+  const addInvestment = (investment: Omit<InvestmentAsset, 'id'>) => setData(prev => ({
+    ...prev,
+    investments: [...(prev.investments || []), { ...investment, id: crypto.randomUUID() }]
+  }));
+
+  const updateInvestment = (id: string, details: Partial<InvestmentAsset>) => setData(prev => ({
+    ...prev,
+    investments: (prev.investments || []).map(i => i.id === id ? { ...i, ...details } : i)
+  }));
+
+  const deleteInvestment = (id: string) => setData(prev => ({
+    ...prev,
+    investments: (prev.investments || []).filter(i => i.id !== id)
+  }));
+
   const importData = (jsonString: string): boolean => {
     try {
       const parsed = JSON.parse(jsonString) as AppData;
       if (parsed.transactions) {
-        setData({ ...parsed, goals: parsed.goals || [] });
+        setData(prev => ({
+          ...prev,
+          ...parsed,
+          transactions: parsed.transactions || [],
+          categories: parsed.categories || prev.categories,
+          accounts: ensureRequiredAccounts(parsed.accounts || prev.accounts || []),
+          goals: parsed.goals || prev.goals || [],
+          investments: parsed.investments || prev.investments || [],
+        }));
         return true;
       }
       return false;
@@ -278,6 +316,71 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setData(prev => ({ ...prev, accounts: updatedAccounts, transactions: [...newTransactions, ...prev.transactions] }));
       return newTransactions.length;
     } catch (e) { return 0; }
+  };
+
+  const importCSV = (csvString: string, accountId: string, separator: string): number => {
+    try {
+      const sep = separator || ';';
+      const lines = csvString.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) return 0;
+      const header = lines[0].split(sep).map(v => v.trim().toLowerCase());
+
+      const getIdx = (...names: string[]) => names.map(n => header.indexOf(n)).find(i => i !== -1) ?? -1;
+      const idxDate = getIdx('data', 'date');
+      const idxDesc = getIdx('descricao', 'descrição', 'historico', 'histórico', 'description');
+      const idxAmount = getIdx('valor', 'amount');
+      const idxType = getIdx('tipo', 'type');
+
+      const parseAmount = (raw: string): number => {
+        const value = (raw || '').trim();
+        if (!value) return Number.NaN;
+        const hasComma = value.includes(',');
+        const normalized = hasComma ? value.replace(/\./g, '').replace(',', '.') : value.replace(/,/g, '');
+        return parseFloat(normalized);
+      };
+
+      const rows = lines.slice(1);
+      const newTransactions: Transaction[] = [];
+
+      rows.forEach(row => {
+        if (!row) return;
+        const cols = row.split(sep).map(v => v.trim());
+        const dateRaw = idxDate >= 0 ? (cols[idxDate] || '') : '';
+        const desc = idxDesc >= 0 ? (cols[idxDesc] || 'CSV') : 'CSV';
+        const amountRaw = idxAmount >= 0 ? (cols[idxAmount] || '0') : '0';
+        const parsedAmount = parseAmount(amountRaw);
+        if (Number.isNaN(parsedAmount) || parsedAmount === 0) return;
+
+        const amount = Math.abs(parsedAmount);
+        const isoDate = dateRaw.includes('/') ? dateRaw.split('/').reverse().join('-') : (dateRaw || new Date().toISOString().split('T')[0]);
+
+        const typeRaw = idxType >= 0 ? (cols[idxType] || '').toLowerCase() : '';
+        const inferredBySignal = parsedAmount > 0 ? 'INCOME' : 'EXPENSE';
+        const type = typeRaw.includes('receita') || typeRaw.includes('credito') || typeRaw.includes('income')
+          ? 'INCOME'
+          : typeRaw.includes('despesa') || typeRaw.includes('debito') || typeRaw.includes('expense')
+            ? 'EXPENSE'
+            : inferredBySignal;
+
+        newTransactions.push({
+          id: crypto.randomUUID(),
+          description: desc || 'CSV',
+          amount,
+          type: type as any,
+          status: 'COMPLETED',
+          date: isoDate,
+          accountId,
+        });
+      });
+
+      if (!newTransactions.length) return 0;
+      let updatedAccounts = [...data.accounts];
+      newTransactions.forEach(t => updatedAccounts = applyBalanceEffect(updatedAccounts, t, false));
+      setData(prev => ({ ...prev, accounts: updatedAccounts, transactions: [...newTransactions, ...prev.transactions] }));
+      return newTransactions.length;
+    } catch (e) {
+      return 0;
+    }
   };
 
   const exportData = () => JSON.stringify(data, null, 2);
@@ -312,7 +415,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateAccountBalance, updateAccountDetails,
       addCategory, updateCategory, deleteCategory, addSubcategory,
       addGoal, updateGoal, deleteGoal,
-      importData, importOFX, exportData, getCategoryStats, getUpcomingBills,
+      addInvestment, updateInvestment, deleteInvestment,
+      importData, importOFX, importCSV, exportData, getCategoryStats, getUpcomingBills,
       filteredTransactions, advancedFilters, setAdvancedFilters
     }}>
       {children}
