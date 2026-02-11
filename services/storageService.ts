@@ -55,12 +55,16 @@ export const loadData = (): AppData => {
   } catch (e) {
     console.error('Failed to load data', e);
   }
+
   return DEFAULT_DATA;
 };
 
 export const saveData = (data: AppData): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const payload = JSON.stringify(data);
+    localStorage.setItem(PRIMARY_STORAGE_KEY, payload);
+    // Mantém compatibilidade entre versões em execução simultânea.
+    localStorage.setItem('finances_local_v2', payload);
   } catch (e) {
     console.error('Failed to save data', e);
   }
